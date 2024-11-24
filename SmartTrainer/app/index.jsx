@@ -4,9 +4,9 @@ import { useRouter } from 'expo-router';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-
+  const [email, setEmail] = useState('emcohez@gmail.com');
+  const [password, setPassword] = useState('123456');
+    
   const handleLogin = () => {
     if (!email || !password) {
       Alert.alert('Error', 'Por favor, completa todos los campos.');
