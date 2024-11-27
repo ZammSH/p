@@ -1,10 +1,18 @@
-import { View, Text } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import React from 'react'
+import Calendar from '../../components/routine/calendar'
 
 export default function Routine() {
     return (
-        <View>
-            <Text>routine</Text>
+        <View style={styles.container}>
+            <Calendar/>
         </View>
     )
 }
+
+const styles = StyleSheet.create ({
+    container: {
+        padding: 20, 
+        marginTop: 20
+    }
+})
