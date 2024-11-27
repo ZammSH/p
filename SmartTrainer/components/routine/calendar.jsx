@@ -24,23 +24,41 @@ export default function Calendar() {
     }
     resetStorage();
   }, [])
-  
+   //Obtener Semana Actual
+   const getCurrentWeek = () => {
+    const now = new Date()
+    const firstDayOfYear = new Date(now.getFullYear(), 0, 1)
+    const pastDaysOfYear = (now - firstDayOfYear) / 86400000
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
+   }
+
+   const currentWeek = getCurrentWeek()
+
   //Cargar datos guardados
   useEffect(() => {
     const loadRoutines = async () => {
         try {
             const savedRoutines = await AsyncStorage.getItem("routines")
-            if (savedRoutines) {
-                setRoutines(JSON.parse(savedRoutines))
+            const savedWeek = await AsyncStorage.getItem("currentWeek")
+
+            if (savedRoutines && savedWeek) {
+                if (parseInt(savedWeek) === currentWeek) {
+                    setRoutines(JSON.parse(savedRoutines))
+                } else {
+                    setRoutines(initialRoutines)
+                    await AsyncStorage.setItem("currentWeek", currentWeek.toString())
+                }
             } else {
                 setRoutines(initialRoutines)
+                await AsyncStorage.setItem("currentWeek", currentWeek.toString())
             }
         } catch (error) {
             console.log("Error al cargar rutinas: ", error)
+            setRoutines(initialRoutines)
         }
     }
     loadRoutines()
-  }, [])
+  }, [currentWeek])
 
 
   // Guardar la rutina al actualizar
@@ -48,12 +66,13 @@ export default function Calendar() {
     const saveRoutines = async () => {
         try {
             await AsyncStorage.setItem("routines", JSON.stringify(routines))
+            await AsyncStorage.setItem("currentWeek", currentWeek.toString())
         } catch (error) {
             console.log("Error al guardar rutinas: ", error)
         }
     }
     saveRoutines()
-  }, [routines])
+  }, [routines, currentWeek])
 
   const completedRoutine = (day) => {
     if (day !== today){
