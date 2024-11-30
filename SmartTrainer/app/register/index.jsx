@@ -1,26 +1,60 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, ScrollView, Alert } from 'react-native'
-import { Picker } from '@react-native-picker/picker'
+import { View, Text, TextInput, Button, StyleSheet, ScrollView, Alert } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 
 export default function RegisterScreen() {
   const router = useRouter();
 
   const [name, setName] = useState('');
-  const [age, setAge] = useState('');
+  const [surname, setSurname] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
   const [diseases, setDiseases] = useState('');
   const [injuries, setInjuries] = useState('');
+  const [experience, setExperience] = useState('');
+  const [equipment, setEquipment] = useState('');
 
-  const handleRegister = () => {
-    if (!name || !age || !weight || !height || !diseases) {
+  const handleRegister = async () => {
+    if (!name || !surname || !email || !password || !weight || !height || !diseases || !experience || !equipment) {
       Alert.alert('Error', 'Por favor, completa todos los campos obligatorios.');
       return;
     }
 
-    Alert.alert('Registro exitoso', 'Tus datos han sido registrados correctamente.');
-    router.push('/'); // Redirige al inicio después del registro.
+    try {
+      const response = await fetch('http://localhost:3000/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nombre: name,
+          apellido: surname,
+          correo: email,
+          contraseña: password,
+          peso: weight,
+          estatura: height,
+          enfermedades: diseases,
+          lesiones: injuries,
+          experiencia: experience,
+          equipo: equipment
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.status === 200) {
+        Alert.alert('Registro exitoso', 'Tus datos han sido registrados correctamente.');
+        router.push('/'); // Redirige al inicio después del registro
+      } else {
+        Alert.alert('Error', result.message);
+      }
+    } catch (error) {
+      console.error('Error al registrar usuario:', error);
+      Alert.alert('Error', 'Hubo un problema al registrar el usuario.');
+    }
   };
 
   return (
@@ -35,10 +69,22 @@ export default function RegisterScreen() {
       />
       <TextInput
         style={styles.input}
-        placeholder="Edad"
-        value={age}
-        onChangeText={setAge}
-        keyboardType="numeric"
+        placeholder="Apellido"
+        value={surname}
+        onChangeText={setSurname}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Correo"
+        value={email}
+        onChangeText={setEmail}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Contraseña"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
       />
       <TextInput
         style={styles.input}
@@ -62,11 +108,11 @@ export default function RegisterScreen() {
         style={styles.picker}
       >
         <Picker.Item label="Selecciona una opción" value="" />
-        <Picker.Item label="Ninguna" value="none" />
-        <Picker.Item label="Diabetes" value="diabetes" />
-        <Picker.Item label="Hipertensión" value="hypertension" />
-        <Picker.Item label="Asma" value="asthma" />
-        <Picker.Item label="Otra" value="other" />
+        <Picker.Item label="Ninguna" value="Ninguna" />
+        <Picker.Item label="Diabetes" value="Diabetes" />
+        <Picker.Item label="Hipertensión" value="Hipertensión" />
+        <Picker.Item label="Asma" value="Asma" />
+        <Picker.Item label="Otra" value="Otra" />
       </Picker>
 
       <Text style={styles.label}>Lesiones Previas:</Text>
@@ -76,6 +122,26 @@ export default function RegisterScreen() {
         value={injuries}
         onChangeText={setInjuries}
         multiline
+      />
+
+      <Text style={styles.label}>Experiencia en el ejercicio:</Text>
+      <Picker
+        selectedValue={experience}
+        onValueChange={(itemValue) => setExperience(itemValue)}
+        style={styles.picker}
+      >
+        <Picker.Item label="Selecciona una opción" value="" />
+        <Picker.Item label="Principiante" value="Principiante" />
+        <Picker.Item label="Intermedio" value="Intermedio" />
+        <Picker.Item label="Avanzado" value="Avanzado" />
+      </Picker>
+
+      <Text style={styles.label}>Equipo disponible:</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Describe el equipo disponible (si tienes)"
+        value={equipment}
+        onChangeText={setEquipment}
       />
 
       <Button title="Registrar" onPress={handleRegister} />

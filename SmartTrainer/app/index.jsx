@@ -1,23 +1,43 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Para almacenamiento local
 import { useRouter } from 'expo-router';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('emcohez@gmail.com');
-  const [password, setPassword] = useState('123456');
-    
-  const handleLogin = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Por favor, completa todos los campos.');
       return;
     }
 
-    // Aquí puedes agregar la lógica de autenticación con Clerk o cualquier backend.
-    if (email === 'emcohez@gmail.com' && password === '123456') {
-      router.push('/(tabs)/home'); // Navega a la pantalla de rutina al iniciar sesión exitosamente.
-    } else {
-      Alert.alert('Error', 'Credenciales incorrectas.');
+    try {
+      const response = await fetch('http://localhost:3000/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          correo: email,
+          contraseña: password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 200 && data.success) {
+        // Guardar el usuario en AsyncStorage
+        await AsyncStorage.setItem('user', JSON.stringify(data.user));
+        router.push('/(tabs)/home'); // Navegar a la pantalla principal
+      } else {
+        Alert.alert('Error', 'Credenciales incorrectas.');
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'Hubo un problema con la conexión.');
     }
   };
 
@@ -44,7 +64,7 @@ export default function LoginScreen() {
       <Button title="Iniciar Sesión" onPress={handleLogin} />
       <Text
         style={styles.registerLink}
-        onPress={() => router.push('/register')} // Cambia a la pantalla de registro si se implementa.
+        onPress={() => router.push('/register')}
       >
         ¿No tienes una cuenta? Regístrate
       </Text>
