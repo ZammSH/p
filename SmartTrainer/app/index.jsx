@@ -34,7 +34,7 @@ export default function LoginScreen() {
         router.push('/(tabs)/home'); // Navegar a la pantalla principal
       } else {
         Alert.alert('Error', 'Credenciales incorrectas.');
-      }
+      }      
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'Hubo un problema con la conexión.');

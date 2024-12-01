@@ -35,7 +35,7 @@ export default function Categories() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.headerText}>¡Bienvenido! Aquí está tu rutina personalizada:</Text>
+      <Text style={styles.headerText}>Aquí está tu rutina personalizada:</Text>
       <TouchableOpacity style={styles.generateButton} onPress={fetchRoutine}>
         <Text style={styles.generateButtonText}>Generar Rutina</Text>
       </TouchableOpacity>

@@ -16,9 +16,11 @@ export default function RegisterScreen() {
   const [injuries, setInjuries] = useState('');
   const [experience, setExperience] = useState('');
   const [equipment, setEquipment] = useState('');
+  const [objective, setObjective] = useState('');
+  const [availability, setAvailability] = useState('');
 
   const handleRegister = async () => {
-    if (!name || !surname || !email || !password || !weight || !height || !diseases || !experience || !equipment) {
+    if (!name || !surname || !email || !password || !weight || !height || !diseases || !experience || !equipment || !objective || !availability) {
       Alert.alert('Error', 'Por favor, completa todos los campos obligatorios.');
       return;
     }
@@ -39,7 +41,9 @@ export default function RegisterScreen() {
           enfermedades: diseases,
           lesiones: injuries,
           experiencia: experience,
-          equipo: equipment
+          equipo: equipment,
+          objetivo: objective,
+          disponibilidad: availability,
         }),
       });
 
@@ -61,6 +65,7 @@ export default function RegisterScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Registro de Usuario</Text>
 
+      {/* Campos de registro */}
       <TextInput
         style={styles.input}
         placeholder="Nombre"
@@ -144,6 +149,27 @@ export default function RegisterScreen() {
         onChangeText={setEquipment}
       />
 
+      <Text style={styles.label}>Objetivo:</Text>
+      <Picker
+        selectedValue={objective}
+        onValueChange={(itemValue) => setObjective(itemValue)}
+        style={styles.picker}
+      >
+        <Picker.Item label="Selecciona una opción" value="" />
+        <Picker.Item label="Perder Peso" value="Perder Peso" />
+        <Picker.Item label="Ganar Músculo" value="Ganancia muscular" />
+        <Picker.Item label="Mantenimiento" value="Mantenimiento" />
+      </Picker>
+
+      <Text style={styles.label}>Disponibilidad (minutos por día):</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Tiempo disponible para entrenar"
+        value={availability}
+        onChangeText={setAvailability}
+        keyboardType="numeric"
+      />
+
       <Button title="Registrar" onPress={handleRegister} />
     </ScrollView>
   );
@@ -186,3 +212,4 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
 });
+
