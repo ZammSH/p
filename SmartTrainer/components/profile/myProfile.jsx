@@ -1,3 +1,4 @@
+// MyProfile.js
 import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -7,21 +8,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const profilePicture = require("./../../assets/images/profile/profile.png");
 
 export default function MyProfile () {
-    const [userName, setUserName] = useState(''); // Estado para almacenar el nombre del usuario
+    const [userName, setUserName] = useState('');
     const router = useRouter();
 
-    // Efecto para obtener los datos del usuario desde AsyncStorage
     useEffect(() => {
         const fetchUser = async () => {
-            const userData = await AsyncStorage.getItem('user'); // Obtener datos del usuario
+            const userData = await AsyncStorage.getItem('user');
             if (userData) {
-                const user = JSON.parse(userData); // Parsear el JSON de usuario
-                setUserName(user.nombre); // Asumir que 'nombre' es el campo del nombre
+                const user = JSON.parse(userData);
+                setUserName(user.nombre);
             }
         };
 
         fetchUser();
-    }, []); // Solo se ejecuta una vez al montar el componente
+    }, []);
 
     return (
         <View style={styles.container}>
@@ -30,12 +30,17 @@ export default function MyProfile () {
                     <View style={styles.propicArea}>
                         <Image source={profilePicture} style={styles.propic} />
                     </View>
-                    <Text style={styles.name}>{userName || 'UserName'}</Text> {/* Mostrar nombre del usuario */}
+                    <Text style={styles.name}>{userName || 'UserName'}</Text>
                     <Text style={styles.membership}>Premium</Text>
                 </View>
 
                 <View style={styles.buttonList}>
-                    <TouchableOpacity style={styles.buttonSection} activeOpacity="contain">
+                    {/* Botón Cuenta - Redirigir a la pantalla de edición de perfil */}
+                    <TouchableOpacity 
+                        style={styles.buttonSection} 
+                        activeOpacity={0.7}
+                        onPress={() => router.push('profile/editprofile')} // Navegar a la pantalla de edición
+                    >
                         <View style={styles.buttonArea}>
                             <View style={styles.iconArea}>
                                 <Ionicons name="person" size={30} color="black" />
@@ -45,12 +50,16 @@ export default function MyProfile () {
                         <View style={styles.sp}></View>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.buttonSection} activeOpacity="contain">
+                    <TouchableOpacity 
+                        style={styles.buttonSection} 
+                        activeOpacity={0.7}
+                        onPress={() => router.push('profile/notif')} // Navegar a la pantalla de notificaciones
+                    >
                         <View style={styles.buttonArea}>
                             <View style={styles.iconArea}>
-                                <Ionicons name="help" size={30} color="black" />
+                                <Ionicons name="notifications" size={30} color="black" />
                             </View>
-                            <Text style={styles.buttonName}>Ayuda</Text>
+                            <Text style={styles.buttonName}>Notificaciones</Text>
                         </View>
                         <View style={styles.sp}></View>
                     </TouchableOpacity>
@@ -61,26 +70,6 @@ export default function MyProfile () {
                                 <Ionicons name="log-out" size={30} color="black" />
                             </View>
                             <Text style={styles.buttonName}>Cerrar Sesión</Text>
-                        </View>
-                        <View style={styles.sp}></View>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.buttonSection} activeOpacity="contain">
-                        <View style={styles.buttonArea}>
-                            <View style={styles.iconArea}>
-                                <Ionicons name="notifications" size={30} color="black" />
-                            </View>
-                            <Text style={styles.buttonName}>Notificaciones</Text>
-                        </View>
-                        <View style={styles.sp}></View>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.buttonSection} activeOpacity="contain">
-                        <View style={styles.buttonArea}>
-                            <View style={styles.iconArea}>
-                                <Ionicons name="settings" size={30} color="black" />
-                            </View>
-                            <Text style={styles.buttonName}>Configuración</Text>
                         </View>
                         <View style={styles.sp}></View>
                     </TouchableOpacity>

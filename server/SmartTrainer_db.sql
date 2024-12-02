@@ -17,15 +17,10 @@ CREATE TABLE IF NOT EXISTS users (
   disponibilidad INT DEFAULT 30 -- Minutos disponibles al día
 );
 
-CREATE TABLE IF NOT EXISTS routines (
+CREATE TABLE IF NOT EXISTS daily_routines (
   rutina_id INT PRIMARY KEY AUTO_INCREMENT,
   usuario_id INT,
-  ejercicio VARCHAR(255),
-  descripcion TEXT,
- fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  fecha DATE,
+  ejercicios JSON,  -- Guardar los ejercicios en formato JSON
   FOREIGN KEY (usuario_id) REFERENCES users(usuario_id)
 );
-
-
-
-
