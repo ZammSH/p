@@ -25,16 +25,17 @@ const db = mysql.createConnection({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
   port: 41782, // Usa el puerto correcto según tu configuración de Railway
-  connectTimeout: 8000, // Tiempo de espera en milisegundos
+  connectTimeout: 12000, // Tiempo de espera en milisegundos
 });
 
 db.connect((err) => {
   if (err) {
-    console.error('Error al conectar a la base de datos:', err.stack);
-    return;
+    console.error('Error al conectar a la base de datos:', err);
+    process.exit(1); // Salir del proceso si hay error
   }
-  console.log('Conectado a la base de datos');
+  console.log('Conexión a la base de datos exitosa');
 });
+
 
 
 // Rutas
@@ -190,27 +191,26 @@ app.put('/user/:id', (req, res) => {
   });
 });
 ;
-//obtener datos
+
+// Función para obtener datos del usuario
 const getUserData = async (userId) => {
   try {
     const query = 'SELECT * FROM users WHERE usuario_id = ?';
-
     const [rows] = await db.promise().query(query, [userId]);
-    console.log("Datos obtenidos del usuario desde la base de datos:", rows); // 4. Verifica los datos del usuario
+    console.log('Datos del usuario:', rows);
 
     if (rows.length === 0) {
-      throw new Error(`Usuario con id ${userId} no encontrado`);
+      throw new Error('Usuario con id ${userId} no encontrado');
     }
 
     const user = rows[0];
-
     return {
       id: user.usuario_id,
-      experiencia: user.experiencia || 'Principiante', // Principiante, Intermedio, Avanzado
-      disponibilidad: user.disponibilidad || 30, // Tiempo disponible en minutos
-      equipo: user.equipo ? user.equipo.split(',') : [], // Equipamiento disponible
-      enfermedades: user.enfermedades ? user.enfermedades.split(',') : [], // Enfermedades
-      lesiones: user.lesiones ? user.lesiones.split(',') : [], // Lesiones
+      experiencia: user.experiencia || 'Principiante',
+      disponibilidad: user.disponibilidad || 30,
+      equipo: user.equipo ? JSON.parse(user.equipo) : [],
+      enfermedades: user.enfermedades ? JSON.parse(user.enfermedades) : [],
+      lesiones: user.lesiones ? JSON.parse(user.lesiones) : [],
     };
   } catch (error) {
     console.error('Error al obtener datos del usuario:', error.message);
@@ -218,107 +218,123 @@ const getUserData = async (userId) => {
   }
 };
 
-// Función genérica para filtrar ejercicios
-const filterExercises = (exercises, userData, options = {}) => {
-  const { tipoEntrenamiento, musculoEspecifico } = options;
+app.get('/exercises/:category', async (req, res) => {
+  const { category } = req.params;
+  const { userId } = req.query;
 
-  console.log("Ejercicios antes del filtrado:", exercises); // 6. Verifica los ejercicios antes del filtro
-  console.log("Datos del usuario para el filtrado:", userData); // 7. Verifica los datos del usuario
-
-  const filtered = exercises.filter((exercise) => {
-    // (Aplica las condiciones de filtrado aquí)
-    return true; // Pasa el filtro
-  });
-
-  console.log("Ejercicios después del filtrado:", filtered); // 8. Verifica los ejercicios que pasaron el filtro
-  return filtered;
-};
-
-// Función para obtener ejercicios de Wger API
-const getExercisesFromAPI = async (category) => {
   try {
-    const response = await axios.get('https://wger.de/api/v2/exercise', {
-      headers: { Authorization: `Token ${process.env.WGER_API_KEY}` },
-      params: { language: 2, status: 2, category },
-    });
-    console.log("Datos obtenidos de la API Wger:", response.data.results); // 5. Verifica los datos devueltos por la API
-    return response.data.results.map((exercise) => ({
-      id: exercise.id,
-      name: exercise.name,
-      description: exercise.description || 'Sin descripción',
-      equipment: exercise.equipment || [],
-    }));
+    let query = 'SELECT * FROM exercises WHERE category = ?';
+    const params = [category];
+
+    if (userId) {
+      const userData = await getUserData(userId);
+      query += `
+        AND duration <= ?
+        AND NOT JSON_OVERLAPS(restrictions, ?)
+      `;
+      params.push(userData.disponibilidad, JSON.stringify([...userData.enfermedades, ...userData.lesiones]));
+    }
+
+    const [exercises] = await db.promise().query(query, params);
+    res.status(200).json(exercises);
   } catch (error) {
-    console.error(`Error al obtener ejercicios de Wger API:`, error.message);
-    return [];
+    console.error('Error al obtener ejercicios:', error);
+    res.status(500).json({ message: 'Error al obtener ejercicios.' });
   }
+});
+
+
+
+// Función para filtrar ejercicios
+const filterExercises = (exercises, userData) => {
+  return exercises.filter(exercise => {
+    // Filtrar por duración
+    if (exercise.duration > userData.disponibilidad) return false;
+
+    // Verificar equipo necesario
+    if (exercise.equipment && exercise.equipment.length > 0) {
+      const equipmentRequired = JSON.parse(exercise.equipment);
+      if (!equipmentRequired.every(eq => userData.equipo.includes(eq))) return false;
+    }
+
+    // Filtrar por restricciones de enfermedades
+    if (userData.enfermedades.some(disease => JSON.parse(exercise.restrictions).includes(disease))) return false;
+
+    // Filtrar por restricciones de lesiones
+    if (userData.lesiones.some(injury => JSON.parse(exercise.restrictions).includes(injury))) return false;
+
+    return true;
+  });
 };
+
+
 
 // Endpoints
-app.post('/recommended-cardio/:userId', async (req, res) => {
-  const userId = req.params.userId;
+// Ruta para obtener ejercicios recomendados por categoría
+app.post('/recommendations', async (req, res) => {
   try {
-    const userData = await getUserData(userId);
-    console.log("Datos del usuario:", userData); // 1. Verifica los datos del usuario
+    const { category, tiempo = 30, enfermedades = [], lesiones = [] } = req.body;
 
-    const exercises = await getExercisesFromAPI(10); // Cambiar categoría según Wger
-    console.log("Ejercicios obtenidos de la API:", exercises); // 2. Verifica los datos de la API
+    if (!category) {
+      return res.status(400).json({ success: false, message: 'La categoría es obligatoria.' });
+    }
 
-    const filteredExercises = filterExercises(exercises, userData);
-    console.log("Ejercicios filtrados:", filteredExercises); // 3. Verifica los ejercicios después del filtrado
+    const restrictions = JSON.stringify([...enfermedades, ...lesiones]);
+    const query = `
+      SELECT *
+      FROM exercises
+      WHERE category = ?
+        AND duration <= ?
+        AND NOT JSON_OVERLAPS(restrictions, ?)
+    `;
 
-    res.status(200).json({ exercises: filteredExercises });
+    const [rows] = await db.promise().query(query, [category, tiempo, restrictions]);
+
+    if (rows.length === 0) {
+      return res.status(200).json({
+        success: false,
+        message: 'No se encontraron ejercicios para esta categoría.',
+      });
+    }
+
+    res.status(200).json({ success: true, data: rows });
   } catch (error) {
-    console.error('Error al generar ejercicios de cardio:', error.message);
-    res.status(500).json({ message: 'Error al generar ejercicios de cardio' });
+    console.error('Error al obtener ejercicios:', error.message);
+    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
   }
 });
 
-app.post('/recommended-gym/:userId', async (req, res) => {
-  const userId = req.params.userId;
-  const { tipoEntrenamiento, musculoEspecifico } = req.body;
+
+// Ruta para registrar ejercicios en la rutina diaria
+app.post('/add-to-routine', async (req, res) => {
+  const { user_id, exercise_id, fecha } = req.body;
+
   try {
-    const userData = await getUserData(userId);
-    const exercises = await getExercisesFromAPI(8); // Categoría de gimnasio
-    const filteredExercises = filterExercises(exercises, userData, {
-      tipoEntrenamiento,
-      musculoEspecifico,
+    const query = `
+      INSERT INTO daily_routines (usuario_id, fecha, ejercicios)
+      VALUES (?, ?, JSON_ARRAY(?))
+      ON DUPLICATE KEY UPDATE
+        ejercicios = IF(
+          JSON_CONTAINS(ejercicios, JSON_ARRAY(?)),
+          ejercicios,
+          JSON_ARRAY_APPEND(ejercicios, '$', ?)
+        )
+    `;
+
+    await db.promise().query(query, [user_id, fecha, exercise_id, exercise_id, exercise_id]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Ejercicio agregado a la rutina diaria.',
     });
-    res.status(200).json({ exercises: filteredExercises });
   } catch (error) {
-    console.error('Error al generar ejercicios de gimnasio:', error.message);
-    res.status(500).json({ message: 'Error al generar ejercicios de gimnasio' });
+    console.error('Error al agregar ejercicio a la rutina:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al agregar ejercicio a la rutina.',
+    });
   }
 });
-
-app.post('/recommended-home/:userId', async (req, res) => {
-  const userId = req.params.userId;
-  try {
-    const userData = await getUserData(userId);
-    const exercises = await getExercisesFromAPI(9); // Categoría de ejercicios en casa
-    const filteredExercises = filterExercises(exercises, userData);
-    res.status(200).json({ exercises: filteredExercises });
-  } catch (error) {
-    console.error('Error al generar ejercicios en casa:', error.message);
-    res.status(500).json({ message: 'Error al generar ejercicios en casa' });
-  }
-});
-
-app.post('/recommended-calistenia/:userId', async (req, res) => {
-  const userId = req.params.userId;
-  try {
-    const userData = await getUserData(userId);
-    const exercises = await getExercisesFromAPI(7); // Categoría de calistenia
-    const filteredExercises = filterExercises(exercises, userData);
-    res.status(200).json({ exercises: filteredExercises });
-  } catch (error) {
-    console.error('Error al generar ejercicios de calistenia:', error.message);
-    res.status(500).json({ message: 'Error al generar ejercicios de calistenia' });
-  }
-});
-
-
-
 // Iniciar servidor
 app.listen(port, '0.0.0.0', () => {
   console.log('Servidor ejecutándose en http://0.0.0.0:${port}');

@@ -1,196 +1,195 @@
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, FlatList, Modal, StyleSheet } from 'react-native';
+import axios from 'axios';
 
-import React, { useState, useEffect } from "react";
-
-import {
-  FlatList,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  Modal,
-  Button,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
-
-const categories = [
-  { id: '1', title: 'Cardio', icon: '🏃' },
-  { id: '2', title: 'Gimnasio', icon: '🏋️' },
-  { id: '3', title: 'Ejercicio en Casa', icon: '🏠' },
-  { id: '4', title: 'Calistenia', icon: '🤸' },
-];
-
-const App = () => {
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [exercises, setExercises] = useState([]);
-  const [userId] = useState(1); // ID del usuario. Cambiar según sea necesario.
-  const [filters, setFilters] = useState({});
-  const [selectedExercise, setSelectedExercise] = useState(null);
+const Categories = () => {
+  const [recommendedExercises, setRecommendedExercises] = useState([]);
   const [dailyRoutine, setDailyRoutine] = useState([]);
+  const [selectedExercise, setSelectedExercise] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [exerciseDetailsModal, setExerciseDetailsModal] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Función para obtener ejercicios desde el backend
-  const fetchExercises = async (type) => {
+  const fetchExercises = async (category) => {
+    setLoading(true);
     try {
-      let endpoint = `/recommended-${type}/${userId}`;
-      let options = {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      };
+      const response = await axios.post('http://localhost:3000/recommendations', {
+        category: category,
+        tiempo: 30,
+        enfermedades: ['asma'],
+        lesiones: ['rodilla'],
+      });
 
-      if (type === "gym" && filters.tipoEntrenamiento) {
-        options.body = JSON.stringify(filters);
-      }
-
-      const response = await fetch(endpoint, options);
-      const data = await response.json();
-
-      console.log("Datos obtenidos del backend:", data); // Depuración
-
-      if (data.exercises && data.exercises.length > 0) {
-        setExercises(data.exercises);
+      if (response.data.success) {
+        setRecommendedExercises(response.data.data);
+        setModalVisible(true);
       } else {
-        setExercises([]);
+        setRecommendedExercises([]);
       }
     } catch (error) {
-      console.error(`Error al obtener ejercicios de ${type}:`, error.message);
-      setExercises([]);
+      console.error('Error fetching exercises:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Agregar un ejercicio a la rutina diaria
-  const addToRoutine = (exercise) => {
-    setDailyRoutine([...dailyRoutine, exercise]);
-    setSelectedExercise(null);
-    setSelectedCategory(null);
+  const addToDailyRoutine = (exercise) => {
+    if (!dailyRoutine.some((e) => e.exercise_id === exercise.exercise_id)) {
+      setDailyRoutine((prevRoutine) => [...prevRoutine, exercise]);
+    }
+    setModalVisible(false);
+  };
+
+  const showExerciseDetails = (exercise) => {
+    setSelectedExercise(exercise);
+    setExerciseDetailsModal(true);
   };
 
   return (
-    <div>
-      <h1>Gestión de Rutinas de Ejercicio</h1>
-      {/* Botones de Categorías */}
-      <div>
-        <button onClick={() => { setSelectedCategory("cardio"); fetchExercises("cardio"); }}>
-          Cardio
-        </button>
-        <button onClick={() => { setSelectedCategory("gym"); fetchExercises("gym"); }}>
-          Gimnasio
-        </button>
-        <button onClick={() => { setSelectedCategory("home"); fetchExercises("home"); }}>
-          Ejercicio en Casa
-        </button>
-        <button onClick={() => { setSelectedCategory("calistenia"); fetchExercises("calistenia"); }}>
-          Calistenia
-        </button>
-      </div>
+    <View style={styles.container}>
+      <Text style={styles.title}>Categorías</Text>
+      <View style={styles.buttonContainer}>
+        {['Cardio', 'Calistenia', 'Gimnasio', 'Ejercicio en casa'].map((category) => (
+          <TouchableOpacity
+            key={category}
+            style={styles.button}
+            onPress={() => fetchExercises(category.toLowerCase())}
+          >
+            <Text style={styles.buttonText}>{category}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
-      {/* Modal para Mostrar Ejercicios */}
-      {selectedCategory && (
-        <div>
-          <h2>Recomendaciones de {selectedCategory}</h2>
-          {selectedExercise ? (
-            <div>
-              <h3>{selectedExercise.name}</h3>
-              <p>{selectedExercise.description}</p>
-              <button onClick={() => addToRoutine(selectedExercise)}>Agregar a la rutina</button>
-              <button onClick={() => setSelectedExercise(null)}>Regresar</button>
-            </div>
-          ) : (
-            <ul>
-              {exercises.length > 0 ? (
-                exercises.map((exercise) => (
-                  <li key={exercise.id}>
-                    <span onClick={() => setSelectedExercise(exercise)}>{exercise.name}</span>
-                  </li>
-                ))
-              ) : (
-                <p>No se encontraron ejercicios para esta categoría.</p>
-              )}
-            </ul>
+      <Text style={styles.sectionTitle}>Rutina del día</Text>
+      {dailyRoutine.length > 0 ? (
+        <FlatList
+          data={dailyRoutine}
+          keyExtractor={(item) => item.exercise_id.toString()}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.routineItem}
+              onPress={() => showExerciseDetails(item)}
+            >
+              <Text style={styles.routineText}>{item.name}</Text>
+            </TouchableOpacity>
           )}
-          <button onClick={() => setSelectedCategory(null)}>Cerrar</button>
-        </div>
+        />
+      ) : (
+        <Text style={styles.noDataText}>No hay ejercicios en la rutina.</Text>
       )}
 
-      {/* Rutina Diaria */}
-      <div>
-        <h2>Rutina Diaria</h2>
-        <ul>
-          {dailyRoutine.map((exercise, index) => (
-            <li key={index}>
-              <strong>{exercise.name}</strong>
-              <p>{exercise.description}</p>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+      {/* Modal para elegir ejercicios */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <Text style={styles.modalTitle}>Selecciona un ejercicio</Text>
+          {loading ? (
+            <Text style={styles.loadingText}>Cargando...</Text>
+          ) : (
+            <FlatList
+              data={recommendedExercises}
+              keyExtractor={(item) => item.exercise_id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.exerciseItem}
+                  onPress={() => addToDailyRoutine(item)}
+                >
+                  <Text style={styles.exerciseName}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          )}
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setModalVisible(false)}
+          >
+            <Text style={styles.buttonText}>Cerrar</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
+      {/* Modal para ver detalles del ejercicio */}
+      <Modal
+        visible={exerciseDetailsModal}
+        animationType="fade"
+        onRequestClose={() => setExerciseDetailsModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          {selectedExercise && (
+            <>
+              <Text style={styles.modalTitle}>{selectedExercise.name}</Text>
+              <Text>{selectedExercise.description}</Text>
+              <Text>Duración: {selectedExercise.duration} minutos</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setExerciseDetailsModal(false)}
+              >
+                <Text style={styles.buttonText}>Cerrar</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      </Modal>
+    </View>
   );
 };
-
-export default App;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#f0f0f0',
+    padding: 16,
   },
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 20,
     textAlign: 'center',
+    marginBottom: 20,
+    color: '#4CAF50',
   },
-  categoryRow: {
+  buttonContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  categoryCard: {
-    flex: 1,
-    margin: 5,
-    backgroundColor: '#fff',
+  button: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 15,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 3,
+    marginVertical: 8,
+    width: '48%',
   },
-  routineContainer: {
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
     marginTop: 20,
-  },
-  routineTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginVertical: 10,
-  },
-  listContainer: {
-    marginBottom: 20,
-  },
-  exerciseCard: {
     marginBottom: 10,
-    padding: 15,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
+    color: '#333',
   },
-  exerciseTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContent: {
+  routineItem: {
     backgroundColor: '#fff',
-    padding: 20,
-    marginHorizontal: 30,
+    padding: 12,
     borderRadius: 8,
+    marginVertical: 6,
+    elevation: 2,
+  },
+  routineText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  modalContainer: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'center',
   },
   modalTitle: {
     fontSize: 20,
@@ -198,51 +197,25 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: 'center',
   },
-  trainingOption: {
-    marginVertical: 10,
-    padding: 15,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 8,
-  },
-  trainingOptionText: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
   exerciseItem: {
-    marginVertical: 10,
-    padding: 15,
-    backgroundColor: '#e0e0e0',
+    padding: 16,
+    backgroundColor: '#fff',
+    marginVertical: 8,
     borderRadius: 8,
+    elevation: 2,
   },
-  noExercises: {
-    fontSize: 16,
-    color: 'gray',
-    textAlign: 'center',
+  exerciseName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
   },
-    body: {
-      fontFamily: "Arial, sans-serif",
-      backgroundColor: "#f5f5f5",
-      margin: "0",
-      padding: "20px",
-    },
-    button: {
-      margin: "10px",
-      padding: "10px 20px",
-      fontSize: "16px",
-      cursor: "pointer",
-    },
-    buttonHover: {
-      backgroundColor: "#ddd",
-    },
-    modal: {
-      position: "fixed",
-      top: "50%",
-      left: "50%",
-      transform: "translate(-50%, -50%)",
-      background: "white",
-      padding: "20px",
-      borderRadius: "10px",
-      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
-      zIndex: 1000,
-    },  
+  closeButton: {
+    backgroundColor: '#FF5252',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 20,
+    alignSelf: 'center',
+  },
 });
+
+export default Categories;

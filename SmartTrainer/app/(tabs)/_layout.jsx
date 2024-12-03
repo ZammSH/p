@@ -21,12 +21,6 @@ export default function tabLayout() {
                     headerShown: false,
                     tabBarIcon:({color}) => <FontAwesome6 name="dumbbell" size={24} color={color} />
                 }}/>
-            <Tabs.Screen name='stats'
-                options={{
-                    title: 'Stats',
-                    headerShown: false,
-                    tabBarIcon:({color}) => <Ionicons name="stats-chart" size={24} color={color} />
-                }}/>
             <Tabs.Screen name='profile'
                 options={{
                     title: 'Profile',

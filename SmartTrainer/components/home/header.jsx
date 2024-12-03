@@ -20,7 +20,7 @@ export default function Header() {
   return (
     <View style={styles.header}>
       <View>
-        <Text style={styles.welcome}>Welcome</Text>
+        <Text style={styles.welcome}>Bienvenida</Text>
         <Text style={styles.userName}>{userName || 'UserName'}</Text>
       </View>
 

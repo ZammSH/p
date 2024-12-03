@@ -20,46 +20,34 @@ export default function RegisterScreen() {
   const [availability, setAvailability] = useState('');
 
   const handleRegister = async () => {
-    if (!name || !surname || !email || !password || !weight || !height || !diseases || !experience || !equipment || !objective || !availability) {
-      Alert.alert('Error', 'Por favor, completa todos los campos obligatorios.');
-      return;
-    }
-
+    const userData = {
+      nombre: nombre,
+      apellido: apellido,
+      correo: correo,
+      contraseña: contraseña,
+      peso: peso,
+      estatura: estatura,
+      enfermedades: enfermedades,
+      lesiones: lesiones,
+      experiencia: experiencia,
+      equipo: equipo,
+      objetivo: objetivo,
+      disponibilidad: disponibilidad,
+    };
+  
     try {
-      const response = await fetch('http://192.168.1.79:3000/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          nombre: name,
-          apellido: surname,
-          correo: email,
-          contraseña: password,
-          peso: weight,
-          estatura: height,
-          enfermedades: diseases,
-          lesiones: injuries,
-          experiencia: experience,
-          equipo: equipment,
-          objetivo: objective,
-          disponibilidad: availability,
-        }),
-      });
-
-      const result = await response.json();
-
+      const response = await axios.post('http://localhost:3000/register', userData);
       if (response.status === 200) {
-        Alert.alert('Registro exitoso', 'Tus datos han sido registrados correctamente.');
-        router.push('/'); // Redirige al inicio después del registro
+        alert('Usuario registrado con éxito');
       } else {
-        Alert.alert('Error', result.message);
+        alert('Error al registrar usuario: ' + response.data.message);
       }
     } catch (error) {
       console.error('Error al registrar usuario:', error);
-      Alert.alert('Error', 'Hubo un problema al registrar el usuario.');
+      alert('Error al registrar usuario');
     }
   };
+  
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
