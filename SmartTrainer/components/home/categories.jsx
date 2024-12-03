@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from "react";
+
 import {
   FlatList,
   View,
@@ -19,258 +21,114 @@ const categories = [
   { id: '4', title: 'Calistenia', icon: '🤸' },
 ];
 
-export default function Categories() {
-  const userExperience = 'Principiante'; // Cambia esto dinámicamente según el usuario
-  const [routines, setRoutines] = useState({
-    cardio: [],
-    gym: [],
-    home: [],
-    calisthenics: [],
-  });
-  const [modalVisible, setModalVisible] = useState(false);
-  const [recommendedExercises, setRecommendedExercises] = useState([]);
+const App = () => {
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [exercises, setExercises] = useState([]);
+  const [userId] = useState(1); // ID del usuario. Cambiar según sea necesario.
+  const [filters, setFilters] = useState({});
   const [selectedExercise, setSelectedExercise] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [currentCategory, setCurrentCategory] = useState(null);
-  const [trainingTypeModalVisible, setTrainingTypeModalVisible] = useState(false);
-  const [trainingType, setTrainingType] = useState(null);
-  const [muscleGroup, setMuscleGroup] = useState(null);
-  const [muscleGroupModalVisible, setMuscleGroupModalVisible] = useState(false);
+  const [dailyRoutine, setDailyRoutine] = useState([]);
 
-  const fetchRecommendedExercises = async (category) => {
-    setLoading(true);
+  // Función para obtener ejercicios desde el backend
+  const fetchExercises = async (type) => {
     try {
-      const endpoint =
-        category === 'Cardio'
-          ? 'http://localhost:3000/recommended-cardio/1'
-          : category === 'Gimnasio'
-          ? 'http://localhost:3000/recommended-gym/1'
-          : category === 'Ejercicio en Casa'
-          ? 'http://localhost:3000/recommended-home/1'
-          : 'http://localhost:3000/recommended-calisthenics/1';
+      let endpoint = `/recommended-${type}/${userId}`;
+      let options = {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      };
 
-      const response = await fetch(endpoint);
+      if (type === "gym" && filters.tipoEntrenamiento) {
+        options.body = JSON.stringify(filters);
+      }
+
+      const response = await fetch(endpoint, options);
       const data = await response.json();
-      if (response.ok) {
-        setRecommendedExercises(data);
-        setSelectedExercise(null);
-        setModalVisible(true);
-        setCurrentCategory(category.toLowerCase());
+
+      console.log("Datos obtenidos del backend:", data); // Depuración
+
+      if (data.exercises && data.exercises.length > 0) {
+        setExercises(data.exercises);
       } else {
-        Alert.alert('Error', 'No se pudieron obtener ejercicios recomendados.');
+        setExercises([]);
       }
     } catch (error) {
-      console.error('Error al obtener ejercicios recomendados:', error);
-      Alert.alert('Error', 'No se pudo conectar al servidor.');
-    } finally {
-      setLoading(false);
+      console.error(`Error al obtener ejercicios de ${type}:`, error.message);
+      setExercises([]);
     }
   };
 
-  const fetchRecommendedHomeExercises = async () => {
-    if (!trainingType) {
-      Alert.alert('Error', 'Por favor selecciona un tipo de entrenamiento.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const body = { tipoEntrenamiento: trainingType };
-      if (trainingType === 'especifico' && muscleGroup) {
-        body.grupoMuscular = muscleGroup;
-      }
-
-      const response = await fetch(`http://localhost:3000/recommended-home/1`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setRecommendedExercises(data);
-        setSelectedExercise(null);
-        setModalVisible(true);
-        setCurrentCategory('home');
-      } else {
-        Alert.alert('Error', 'No se pudieron obtener ejercicios recomendados.');
-      }
-    } catch (error) {
-      console.error('Error al obtener ejercicios en casa:', error);
-      Alert.alert('Error', 'No se pudo conectar al servidor.');
-    } finally {
-      setLoading(false);
-      setTrainingTypeModalVisible(false);
-      setMuscleGroupModalVisible(false);
-    }
+  // Agregar un ejercicio a la rutina diaria
+  const addToRoutine = (exercise) => {
+    setDailyRoutine([...dailyRoutine, exercise]);
+    setSelectedExercise(null);
+    setSelectedCategory(null);
   };
-
-  const selectTrainingType = (type) => {
-    setTrainingType(type);
-    if (type === 'especifico' && (userExperience === 'Intermedio' || userExperience === 'Avanzado')) {
-      setMuscleGroupModalVisible(true);
-    } else {
-      fetchRecommendedHomeExercises();
-    }
-  };
-
-  const selectMuscleGroup = (group) => {
-    setMuscleGroup(group);
-    fetchRecommendedHomeExercises();
-  };
-
-  const addToRoutine = () => {
-    if (!selectedExercise) {
-      Alert.alert('Error', 'Por favor selecciona un ejercicio antes de agregarlo.');
-      return;
-    }
-
-    setRoutines((prevRoutines) => ({
-      ...prevRoutines,
-      [currentCategory]: [...prevRoutines[currentCategory], selectedExercise],
-    }));
-
-    setModalVisible(false);
-    Alert.alert('Éxito', `${selectedExercise.name} fue agregado a tu rutina`);
-  };
-
-  const renderCategoryItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.categoryCard}
-      onPress={() => {
-        if (item.title === 'Ejercicio en Casa') {
-          setTrainingTypeModalVisible(true);
-        } else {
-          fetchRecommendedExercises(item.title);
-        }
-      }}
-    >
-      <Text style={styles.categoryIcon}>{item.icon}</Text>
-      <Text style={styles.categoryTitle}>{item.title}</Text>
-    </TouchableOpacity>
-  );
-
-  const renderRoutineList = (category, data) => (
-    <View>
-      <Text style={styles.routineTitle}>{category}</Text>
-      {data.length === 0 ? (
-        <Text style={styles.noExercises}>No hay ejercicios aún.</Text>
-      ) : (
-        <FlatList
-          data={data}
-          keyExtractor={(item, index) => index.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.exerciseCard}>
-              <Text style={styles.exerciseTitle}>{item.name}</Text>
-            </View>
-          )}
-          contentContainerStyle={styles.listContainer}
-        />
-      )}
-    </View>
-  );
-
-  const renderExerciseItem = ({ item }) => (
-    <TouchableOpacity
-      style={[
-        styles.exerciseItem,
-        selectedExercise?.name === item.name && { backgroundColor: '#d3f9d8' },
-      ]}
-      onPress={() => setSelectedExercise(item)}
-    >
-      <Text style={styles.exerciseTitle}>{item.name}</Text>
-    </TouchableOpacity>
-  );
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Selecciona una categoría:</Text>
-      <FlatList
-        data={categories}
-        keyExtractor={(item) => item.id}
-        renderItem={renderCategoryItem}
-        numColumns={2}
-        columnWrapperStyle={styles.categoryRow}
-      />
+    <div>
+      <h1>Gestión de Rutinas de Ejercicio</h1>
+      {/* Botones de Categorías */}
+      <div>
+        <button onClick={() => { setSelectedCategory("cardio"); fetchExercises("cardio"); }}>
+          Cardio
+        </button>
+        <button onClick={() => { setSelectedCategory("gym"); fetchExercises("gym"); }}>
+          Gimnasio
+        </button>
+        <button onClick={() => { setSelectedCategory("home"); fetchExercises("home"); }}>
+          Ejercicio en Casa
+        </button>
+        <button onClick={() => { setSelectedCategory("calistenia"); fetchExercises("calistenia"); }}>
+          Calistenia
+        </button>
+      </div>
 
-      <View style={styles.routineContainer}>
-        {renderRoutineList('Cardio', routines.cardio)}
-        {renderRoutineList('Gimnasio', routines.gym)}
-        {renderRoutineList('Ejercicio en Casa', routines.home)}
-        {renderRoutineList('Calistenia', routines.calisthenics)}
-      </View>
-
-      {/* Modal para tipo de entrenamiento */}
-      <Modal
-        visible={trainingTypeModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setTrainingTypeModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Selecciona el tipo de entrenamiento:</Text>
-            {['Fullbody', 'Tren Superior', 'Tren Inferior']
-              .concat(userExperience !== 'Principiante' ? ['Específico'] : [])
-              .map((option, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.trainingOption}
-                  onPress={() => selectTrainingType(option.toLowerCase().replace(' ', ''))}
-                >
-                  <Text style={styles.trainingOptionText}>{option}</Text>
-                </TouchableOpacity>
-              ))}
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal para grupo muscular */}
-      <Modal
-        visible={muscleGroupModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setMuscleGroupModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Selecciona el grupo muscular:</Text>
-            {['Bíceps', 'Tríceps', 'Pectorales', 'Espalda', 'Piernas'].map((group, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.trainingOption}
-                onPress={() => selectMuscleGroup(group.toLowerCase())}
-              >
-                <Text style={styles.trainingOptionText}>{group}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal para ejercicios */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Selecciona un ejercicio:</Text>
-          {loading ? (
-            <ActivityIndicator size="large" color="#007bff" />
+      {/* Modal para Mostrar Ejercicios */}
+      {selectedCategory && (
+        <div>
+          <h2>Recomendaciones de {selectedCategory}</h2>
+          {selectedExercise ? (
+            <div>
+              <h3>{selectedExercise.name}</h3>
+              <p>{selectedExercise.description}</p>
+              <button onClick={() => addToRoutine(selectedExercise)}>Agregar a la rutina</button>
+              <button onClick={() => setSelectedExercise(null)}>Regresar</button>
+            </div>
           ) : (
-            <FlatList
-              data={recommendedExercises}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={renderExerciseItem}
-            />
+            <ul>
+              {exercises.length > 0 ? (
+                exercises.map((exercise) => (
+                  <li key={exercise.id}>
+                    <span onClick={() => setSelectedExercise(exercise)}>{exercise.name}</span>
+                  </li>
+                ))
+              ) : (
+                <p>No se encontraron ejercicios para esta categoría.</p>
+              )}
+            </ul>
           )}
-          <Button title="Agregar" onPress={addToRoutine} />
-        </View>
-      </Modal>
-    </ScrollView>
+          <button onClick={() => setSelectedCategory(null)}>Cerrar</button>
+        </div>
+      )}
+
+      {/* Rutina Diaria */}
+      <div>
+        <h2>Rutina Diaria</h2>
+        <ul>
+          {dailyRoutine.map((exercise, index) => (
+            <li key={index}>
+              <strong>{exercise.name}</strong>
+              <p>{exercise.description}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
-}
+};
+
+export default App;
 
 const styles = StyleSheet.create({
   container: {
@@ -361,4 +219,30 @@ const styles = StyleSheet.create({
     color: 'gray',
     textAlign: 'center',
   },
+    body: {
+      fontFamily: "Arial, sans-serif",
+      backgroundColor: "#f5f5f5",
+      margin: "0",
+      padding: "20px",
+    },
+    button: {
+      margin: "10px",
+      padding: "10px 20px",
+      fontSize: "16px",
+      cursor: "pointer",
+    },
+    buttonHover: {
+      backgroundColor: "#ddd",
+    },
+    modal: {
+      position: "fixed",
+      top: "50%",
+      left: "50%",
+      transform: "translate(-50%, -50%)",
+      background: "white",
+      padding: "20px",
+      borderRadius: "10px",
+      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
+      zIndex: 1000,
+    },  
 });
